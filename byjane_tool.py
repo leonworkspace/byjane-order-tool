@@ -1,6 +1,6 @@
 import streamlit as st
-import pandas as pd
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import PatternFill
 import io
 
 # --- 核心邏輯函數 ---
@@ -39,21 +39,23 @@ if uploaded_file:
         if title:
             header_map[str(title).strip()] = col
 
-    # --- 2. 欄位定義 (根據你的要求調整預設索引) ---
+    # --- 2. 欄位定義 (根據最新需求調整) ---
     col_id      = header_map.get('訂單編號', 1)
     col_name    = header_map.get('收件人姓名', 2)
     col_mobile  = header_map.get('收件人手機', 5)
     col_addr    = header_map.get('收件人地址', 7)
-    
-    # 名稱預設 9, 款式預設 10, 數量預設 11
+    col_pay_stat = header_map.get('付款狀態', 7)  # 付款狀態預設第 7 欄
     col_pack    = header_map.get('商品名稱', 9) 
     col_type    = header_map.get('商品款式', 10) 
     col_val     = header_map.get('數量', 11)
     col_deliver = header_map.get('配送方式', 14)
 
+    # 定義粉紅色底色
+    pink_fill = PatternFill(start_color="FFC9CA", end_color="FFC9CA", fill_type="solid")
+
     # --- 3. 初始化目標表格 ---
     wb_byjane = Workbook(); ws_byjane = wb_byjane.active
-    ws_byjane.append(["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "提袋", "禮盒", "總數"])
+    ws_byjane.append(["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦 caramel", "開心果", "提袋", "禮盒", "總數"])
 
     wb_cat = Workbook(); ws_cat = wb_cat.active
     ws_cat.append(["收件人姓名", "收件人電話", "收件人手機", "收件人地址", "代收金額或到付", "件數", "品名(詳參數表)", "備註", "訂單編號", "希望配達時間(詳參數表)", "出貨日期(YYYY/MM/DD)", "預定配達日期(YYYY/MM/DD)", "溫層(詳參數表)", "尺寸(詳參數表)", "寄件人姓名", "寄件人電話", "寄件人手機", "寄件人地址", "保值金額", "品名說明", "是否列印(Y/N)", "是否捐贈(Y/N)", "統一編號", "手機載具", "愛心碼", "可刷卡(Y/N)", "手機支付(Y/N)"])
@@ -66,6 +68,7 @@ if uploaded_file:
     row_byjane = 1
     order_num_flag = 0
     prod_sum = 0
+    is_unpaid = False # 標記目前處理的訂單是否未付款
     
     while True:
         order_num_current = ws.cell(row=row_source, column=col_id).value
@@ -73,22 +76,30 @@ if uploaded_file:
         
         if order_num_flag == 0:
             order_name_current = ws.cell(row=row_source, column=col_name).value
+            pay_status = ws.cell(row=row_source, column=col_pay_stat).value
+            is_unpaid = (str(pay_status).strip() == "等待付款")
+            
             row_byjane += 1
             ws_byjane.cell(row=row_byjane, column=1).value = order_num_current
             ws_byjane.cell(row=row_byjane, column=2).value = order_name_current
+            
+            # 如果未付款，將整列先標上顏色 (先處理前兩欄)
+            if is_unpaid:
+                for c in range(1, 23):
+                    ws_byjane.cell(row=row_byjane, column=c).fill = pink_fill
+            
             order_num_flag = 1
 
         v_pack = ws.cell(row=row_source, column=col_pack).value
         v_type = ws.cell(row=row_source, column=col_type).value
         p_val  = ws.cell(row=row_source, column=col_val).value or 0
         
-        # 處理包裝
+        # 處理包裝與口味
         p_col = f_prod_pack_col(v_pack)
         if p_col != 0:
             ws_byjane.cell(row=row_byjane, column=p_col).value = p_val
             if p_col < 7: prod_sum += (p_val * 8)
         
-        # 處理款式
         t_col = f_prod_type_col(v_type)
         if t_col != 0:
             ws_byjane.cell(row=row_byjane, column=t_col).value = p_val
@@ -119,7 +130,7 @@ if uploaded_file:
         if order_num_next is None: break
         row_source += 1
 
-    st.success("✨ 處理完成！")
+    st.success("✨ 處理完成！『等待付款』訂單已標記底色。")
     def get_io(wb):
         out = io.BytesIO(); wb.save(out); return out.getvalue()
     c1, c2, c3 = st.columns(3)
