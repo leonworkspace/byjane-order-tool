@@ -1,13 +1,3 @@
-這兩個功能對於出貨管理非常重要！第一項能確保文件歸檔時不會搞混日期；第二項則能強迫提醒操作人員，避免誤寄還沒付錢的訂單。
-
-我已經更新了程式碼：
-
-檔名自動帶日期：程式會自動抓取你原始 Excel 檔名結尾的日期（例如 訂單報表_20260320.xlsx 會抓出 20260320），並加在產出的三個檔案名稱中。
-
-未付款提醒視窗：使用 Streamlit 的 st.warning 或 st.error 建立一個明顯的區塊，列出所有「等待付款」的客戶姓名與編號。
-
-完整更新版 byjane_tool.py
-Python
 import streamlit as st
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
