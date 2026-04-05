@@ -28,40 +28,28 @@ def f_prod_type_col(prod_type):
 
 # --- Streamlit 介面 ---
 st.set_page_config(page_title="ByJane 訂單自動處理", layout="wide")
-st.title("🧇 ByJane 訂單自動處理系統 (標題自動辨識版)")
+st.title("🧇 ByJane 訂單自動處理系統")
+st.write("上傳『訂單報表.xlsx』後，系統將自動生成宅配明細、黑貓匯入檔及宅轉店檔案。")
 
-uploaded_file = st.file_uploader("請上傳『訂單報表.xlsx』", type=["xlsx"])
+uploaded_file = st.file_uploader("選擇 Excel 檔案", type=["xlsx"])
 
 if uploaded_file:
-    wb_source = load_workbook(uploaded_file)
-    ws = wb_source.active
-    
-    # --- 1. 自動建立標題地圖 (核心更新) ---
-    header_map = {}
-    for col in range(1, ws.max_column + 1):
-        title = ws.cell(row=1, column=col).value
-        if title:
-            header_map[title.strip()] = col # 去除空格確保精準度
-
-    # 檢查必要欄位是否存在 (你可以根據實際 Excel 標題微調關鍵字)
     try:
-        COL_ORDER_ID = header_map['訂單編號']
-        COL_NAME = header_map['收件人姓名']
-        COL_MOBILE = header_map['收件人手機']
-        COL_ADDR = header_map['收件人地址']
-        COL_PROD_PACK = header_map['包裝'] # 請確認你的 Excel 標題是否為這兩個字
-        COL_PROD_TYPE = header_map['品項名稱']
-        COL_PROD_VAL = header_map['數量']
-        COL_DELIVER = header_map['配送方式']
-    except KeyError as e:
-        st.error(f"❌ 找不到必要欄位：{e}。請檢查 Excel 第一列標題名稱是否正確。")
-        st.stop()
+        # 1. 讀取來源檔案
+        wb_source = load_workbook(uploaded_file, data_only=True)
+        ws = wb_source.active
+        
+        # --- 自動建立標題地圖 ---
+        header_map = {}
+        for col in range(1, ws.max_column + 1):
+            title = ws.cell(row=1, column=col).value
+            if title:
+                header_map[str(title).strip()] = col
 
-    # --- 2. 初始化目標檔案 (保持原樣) ---
-    wb_byjane = Workbook()
-    ws_byjane = wb_byjane.active
-    ws_byjane.append(["訂單編號", "姓名", "綜合", "人氣", "成熟", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "提袋", "禮盒", "總數"])
-
-    wb_cat = Workbook()
-    ws_cat = wb_cat.active
-    ws_cat.append(["收件人姓名", "收件人電話", "收件人手機", "收件人地址", "代收金額或到付", "件數", "品名(詳參數表)", "備註", "訂單編號", "希望配達時間(詳參數表)", "出貨日期(YYYY/MM/DD)", "預定配達日期(YYYY/MM/DD)", "溫層(詳參數表)", "尺寸(詳參數表)", "寄件人姓名", "寄件人電話", "寄件人手機", "寄件人地址", "保值金額", "品名說明", "是否列印(Y/N)", "是否捐贈(Y/N)", "統一編號", "手機載具", "愛心碼", "可
+        # --- 欄位定義 (若找不到則使用預設索引) ---
+        # 如果你的 Excel 標題名稱不同，請修改下方的字串
+        col_id = header_map.get('訂單編號', 1)
+        col_name = header_map.get('收件人姓名', 2)
+        col_mobile = header_map.get('收件人手機', 5)
+        col_addr = header_map.get('收件人地址', 7)
+        col
