@@ -6,9 +6,10 @@ import re
 
 # --- 核心邏輯函數 ---
 def f_prod_pack_col(value):
+    # 僅保留限定禮盒與 A/B/C/D 的對應，移除提袋與一般禮盒包裝
     mapping = {
-        "提袋": 20, "禮盒包裝（滿八入）": 21,
-        "ByJane 馬年限定禮盒 2026（宅配）": 1, "ByJane 馬年限定禮盒 2026 （自取）": 1
+        "ByJane 馬年限定禮盒 2026（宅配）": 1, 
+        "ByJane 馬年限定禮盒 2026 （自取）": 1
     }
     return mapping.get(str(value).strip(), 0) if value else 0
 
@@ -30,7 +31,7 @@ st.title("🧇 ByJane 訂單自動處理系統")
 uploaded_file = st.file_uploader("請上傳『訂單報表』Excel 檔", type=["xlsx"])
 
 if uploaded_file:
-    # 1. 提取原始檔名中的日期 (抓取數字部分，例如 20260315)
+    # 提取原始檔名中的日期
     file_name = uploaded_file.name
     date_suffix = ""
     date_match = re.search(r'(\d+)', file_name)
@@ -45,7 +46,6 @@ if uploaded_file:
         title = ws.cell(row=1, column=col).value
         if title: header_map[str(title).strip()] = col
 
-    # 欄位定義
     col_id = header_map.get('訂單編號', 1)
     col_name = header_map.get('收件人姓名', 2)
     col_mobile = header_map.get('收件人手機', 5)
@@ -62,7 +62,8 @@ if uploaded_file:
     all_data = []
     active_cols = set()
     unpaid_list = []
-    all_titles = ["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "提袋", "禮盒"]
+    # 標題清單已移除「提袋」與「禮盒」
+    all_titles = ["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果"]
     
     row_source = 2
     order_num_flag = 0
@@ -94,7 +95,9 @@ if uploaded_file:
             p_col = f_prod_pack_col(ws.cell(row=row_source, column=col_pack).value)
             t_col = f_prod_type_col(ws.cell(row=row_source, column=col_type).value)
             target_col = p_col if p_col != 0 else t_col
-            if target_col != 0:
+            
+            # 確保 target_col 在 Waffle 品項範圍內 (1~19)
+            if 0 < target_col <= 19:
                 current_order_data["items"][target_col] = current_order_data["items"].get(target_col, 0) + p_val
                 active_cols.add(target_col)
                 current_order_data["sum"] += (p_val * 8 if target_col < 7 else p_val)
@@ -111,13 +114,13 @@ if uploaded_file:
         st.code("\n".join(unpaid_list))
 
     # --- 產出表格 ---
-    # 1. 宅配明細 (動態欄位)
+    # 1. 宅配明細 (動態欄位，排除提袋禮盒)
     used_indices = sorted(list(active_cols))
     final_header = ["訂單編號", "姓名"] + [all_titles[i-1] for i in used_indices if i > 2] + ["總數"]
     wb_byjane = Workbook(); ws_byjane = wb_byjane.active
     ws_byjane.append(final_header)
 
-    # 2. 黑貓匯入單 (標準 27 欄)
+    # 2. 黑貓匯入單 (格式不變)
     wb_cat = Workbook(); ws_cat = wb_cat.active
     ws_cat.append(["收件人姓名", "收件人電話", "收件人手機", "收件人地址", "代收金額或到付", "件數", "品名(詳參數表)", "備註", "訂單編號", "希望配達時間(詳參數表)", "出貨日期(YYYY/MM/DD)", "預定配達日期(YYYY/MM/DD)", "溫層(詳參數表)", "尺寸(詳參數表)", "寄件人姓名", "寄件人電話", "寄件人手機", "寄件人地址", "保值金額", "品名說明", "是否列印(Y/N)", "是否捐贈(Y/N)", "統一編號", "手機載具", "愛心碼", "可刷卡(Y/N)", "手機支付(Y/N)"])
 
@@ -147,11 +150,10 @@ if uploaded_file:
             cat_row[9], cat_row[12], cat_row[13] = 4, 3, 1
             cat_row[14], cat_row[15], cat_row[16], cat_row[17] = "Byjane簡", "0960-319-998", "0960-319-998", "台南市中西區西賢五街26號"
             ws_cat.append(cat_row)
-            
         elif "711" in deliver or "快速到店" in deliver:
             ws_711.append([data["id"], data["name"], data["mobile"], "", data["id"], "", "", "", boxes, "0003"])
 
-    st.success(f"✨ 處理完成！檔案已準備好。")
+    st.success(f"✨ 處理完成！已移除提袋與禮盒欄位，並更新總數計算。")
     
     def get_io(wb):
         out = io.BytesIO(); wb.save(out); return out.getvalue()
