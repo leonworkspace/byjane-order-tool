@@ -1,10 +1,3 @@
-抱歉抱歉！剛才在處理「動態縮減欄位」和「日期偵測」的大工程時，不小心把黑貓和 7-11 的寫入邏輯縮減過頭了。
-
-我現在把完整的黑貓（27欄格式）、7-11（宅轉店格式），以及你要求的自動日期檔名、未付款紅色警告全部整合在一起。
-
-這份是最終完全版，請全選替換 GitHub 上的 byjane_tool.py：
-
-Python
 import streamlit as st
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
