@@ -53,7 +53,7 @@ if uploaded_file:
 
     # --- 3. 初始化目標表格 ---
     wb_byjane = Workbook(); ws_byjane = wb_byjane.active
-    ws_byjane.append(["訂單編號", "姓名", "綜合", "人氣", "成熟", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "提袋", "禮盒", "總數"])
+    ws_byjane.append(["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "提袋", "禮盒", "總數"])
 
     wb_cat = Workbook(); ws_cat = wb_cat.active
     ws_cat.append(["收件人姓名", "收件人電話", "收件人手機", "收件人地址", "代收金額或到付", "件數", "品名(詳參數表)", "備註", "訂單編號", "希望配達時間(詳參數表)", "出貨日期(YYYY/MM/DD)", "預定配達日期(YYYY/MM/DD)", "溫層(詳參數表)", "尺寸(詳參數表)", "寄件人姓名", "寄件人電話", "寄件人手機", "寄件人地址", "保值金額", "品名說明", "是否列印(Y/N)", "是否捐贈(Y/N)", "統一編號", "手機載具", "愛心碼", "可刷卡(Y/N)", "手機支付(Y/N)"])
@@ -119,7 +119,7 @@ if uploaded_file:
         if order_num_next is None: break
         row_source += 1
 
-    st.success("✨ 處理完成！已設定商品名稱預設第 9 欄、款式預設第 10 欄。")
+    st.success("✨ 處理完成！")
     def get_io(wb):
         out = io.BytesIO(); wb.save(out); return out.getvalue()
     c1, c2, c3 = st.columns(3)
