@@ -6,7 +6,6 @@ import re
 
 # --- 核心邏輯函數 ---
 def f_prod_pack_col(value):
-    # 僅保留限定禮盒與 A/B/C/D 的對應，移除提袋與一般禮盒包裝
     mapping = {
         "ByJane 馬年限定禮盒 2026（宅配）": 1, 
         "ByJane 馬年限定禮盒 2026 （自取）": 1
@@ -25,13 +24,13 @@ def f_prod_type_col(value):
     return mapping.get(str(value).strip(), 0) if value else 0
 
 # --- Streamlit 介面 ---
-st.set_page_config(page_title="ByJane 官網訂單處理", layout="wide")
-st.title("🧇 ByJane 官網訂單處理系統(CYBERBIZ)")
+st.set_page_config(page_title="ByJane 訂單自動處理", layout="wide")
+st.title("🧇 ByJane 訂單自動處理系統")
 
 uploaded_file = st.file_uploader("請上傳『訂單報表』Excel 檔", type=["xlsx"])
 
 if uploaded_file:
-    # 提取原始檔名中的日期
+    # 提取日期
     file_name = uploaded_file.name
     date_suffix = ""
     date_match = re.search(r'(\d+)', file_name)
@@ -46,10 +45,12 @@ if uploaded_file:
         title = ws.cell(row=1, column=col).value
         if title: header_map[str(title).strip()] = col
 
+    # --- 關鍵對齊：根據截圖修改標題搜尋關鍵字 ---
     col_id = header_map.get('訂單編號', 1)
-    col_name = header_map.get('收件人姓名', 2)
-    col_mobile = header_map.get('收件人手機', 5)
-    col_addr = header_map.get('收件人地址', 7)
+    col_rcv_name = header_map.get('收件人名稱', 2)   # 修改為「名稱」
+    col_rcv_mobile = header_map.get('收件人電話', 5) # 修改為「電話」
+    col_rcv_addr = header_map.get('收件人地址', 7)   # 保持「地址」
+    
     col_pay_stat = header_map.get('付款狀態', 7)
     col_pack = header_map.get('商品名稱', 9) 
     col_type = header_map.get('商品款式', 10) 
@@ -58,11 +59,10 @@ if uploaded_file:
 
     pink_fill = PatternFill(start_color="FFC9CA", end_color="FFC9CA", fill_type="solid")
 
-    # --- 數據收集與統計 ---
+    # --- 數據收集 ---
     all_data = []
     active_cols = set()
     unpaid_list = []
-    # 標題清單已移除「提袋」與「禮盒」
     all_titles = ["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果"]
     
     row_source = 2
@@ -78,13 +78,13 @@ if uploaded_file:
             is_unpaid = (p_status == "等待付款")
             current_order_data = {
                 "id": order_num_current,
-                "name": ws.cell(row=row_source, column=col_name).value,
+                "name": ws.cell(row=row_source, column=col_rcv_name).value,
                 "unpaid": is_unpaid,
                 "items": {},
                 "sum": 0,
                 "deliver": ws.cell(row=row_source, column=col_deliver).value,
-                "mobile": ws.cell(row=row_source, column=col_mobile).value,
-                "address": ws.cell(row=row_source, column=col_addr).value
+                "mobile": ws.cell(row=row_source, column=col_rcv_mobile).value,
+                "address": ws.cell(row=row_source, column=col_rcv_addr).value
             }
             if is_unpaid:
                 unpaid_list.append(f"🔴 {order_num_current} - {current_order_data['name']}")
@@ -95,8 +95,6 @@ if uploaded_file:
             p_col = f_prod_pack_col(ws.cell(row=row_source, column=col_pack).value)
             t_col = f_prod_type_col(ws.cell(row=row_source, column=col_type).value)
             target_col = p_col if p_col != 0 else t_col
-            
-            # 確保 target_col 在 Waffle 品項範圍內 (1~19)
             if 0 < target_col <= 19:
                 current_order_data["items"][target_col] = current_order_data["items"].get(target_col, 0) + p_val
                 active_cols.add(target_col)
@@ -114,22 +112,19 @@ if uploaded_file:
         st.code("\n".join(unpaid_list))
 
     # --- 產出表格 ---
-    # 1. 宅配明細 (動態欄位，排除提袋禮盒)
     used_indices = sorted(list(active_cols))
     final_header = ["訂單編號", "姓名"] + [all_titles[i-1] for i in used_indices if i > 2] + ["總數"]
     wb_byjane = Workbook(); ws_byjane = wb_byjane.active
     ws_byjane.append(final_header)
 
-    # 2. 黑貓匯入單 (格式不變)
     wb_cat = Workbook(); ws_cat = wb_cat.active
     ws_cat.append(["收件人姓名", "收件人電話", "收件人手機", "收件人地址", "代收金額或到付", "件數", "品名(詳參數表)", "備註", "訂單編號", "希望配達時間(詳參數表)", "出貨日期(YYYY/MM/DD)", "預定配達日期(YYYY/MM/DD)", "溫層(詳參數表)", "尺寸(詳參數表)", "寄件人姓名", "寄件人電話", "寄件人手機", "寄件人地址", "保值金額", "品名說明", "是否列印(Y/N)", "是否捐贈(Y/N)", "統一編號", "手機載具", "愛心碼", "可刷卡(Y/N)", "手機支付(Y/N)"])
 
-    # 3. 7-11 宅轉店
     wb_711 = Workbook(); ws_711 = wb_711.active
     ws_711.append(["訂單編號", "收件人姓名(必填)", "收件人手機(必填)", "FB名稱", "訂單備註", "代收金額", "門市編號(必填)", "匯款帳戶後五碼", "列印張數", "溫層(冷凍：0003)"])
 
     for data in all_data:
-        # 填寫宅配明細
+        # 宅配明細
         row_vals = [data["id"], data["name"]]
         for idx in used_indices:
             if idx > 2: row_vals.append(data["items"].get(idx, ""))
