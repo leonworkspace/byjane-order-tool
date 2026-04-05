@@ -25,8 +25,8 @@ def f_prod_type_col(value):
     return mapping.get(str(value).strip(), 0) if value else 0
 
 # --- Streamlit 介面 ---
-st.set_page_config(page_title="ByJane 訂單自動處理", layout="wide")
-st.title("🧇 ByJane 訂單自動處理系統")
+st.set_page_config(page_title="ByJane 官網訂單處理", layout="wide")
+st.title("🧇 ByJane 官網訂單處理系統(CYBERBIZ)")
 
 uploaded_file = st.file_uploader("請上傳『訂單報表』Excel 檔", type=["xlsx"])
 
