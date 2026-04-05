@@ -1,3 +1,10 @@
+抱歉抱歉！剛才在處理「動態縮減欄位」和「日期偵測」的大工程時，不小心把黑貓和 7-11 的寫入邏輯縮減過頭了。
+
+我現在把完整的黑貓（27欄格式）、7-11（宅轉店格式），以及你要求的自動日期檔名、未付款紅色警告全部整合在一起。
+
+這份是最終完全版，請全選替換 GitHub 上的 byjane_tool.py：
+
+Python
 import streamlit as st
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill
@@ -33,7 +40,7 @@ if uploaded_file:
     # 1. 提取原始檔名中的日期 (抓取數字部分，例如 20260315)
     file_name = uploaded_file.name
     date_suffix = ""
-    date_match = re.search(r'(\d{4}\d{2}\d{2}|\d{2}\d{2})', file_name)
+    date_match = re.search(r'(\d+)', file_name)
     if date_match:
         date_suffix = f"_{date_match.group(1)}"
     
@@ -45,6 +52,7 @@ if uploaded_file:
         title = ws.cell(row=1, column=col).value
         if title: header_map[str(title).strip()] = col
 
+    # 欄位定義
     col_id = header_map.get('訂單編號', 1)
     col_name = header_map.get('收件人姓名', 2)
     col_mobile = header_map.get('收件人手機', 5)
@@ -57,10 +65,10 @@ if uploaded_file:
 
     pink_fill = PatternFill(start_color="FFC9CA", end_color="FFC9CA", fill_type="solid")
 
-    # --- 數據處理 ---
+    # --- 數據收集與統計 ---
     all_data = []
     active_cols = set()
-    unpaid_list = [] # 用來存儲未付款名單
+    unpaid_list = []
     all_titles = ["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "提袋", "禮盒"]
     
     row_source = 2
@@ -109,18 +117,23 @@ if uploaded_file:
         st.error("⚠️ 注意：以下訂單尚未付款，請核對後再出貨！")
         st.code("\n".join(unpaid_list))
 
-    # --- 產出表格邏輯 ---
+    # --- 產出表格 ---
+    # 1. 宅配明細 (動態欄位)
     used_indices = sorted(list(active_cols))
     final_header = ["訂單編號", "姓名"] + [all_titles[i-1] for i in used_indices if i > 2] + ["總數"]
-
     wb_byjane = Workbook(); ws_byjane = wb_byjane.active
     ws_byjane.append(final_header)
-    
-    wb_cat = Workbook(); ws_cat = wb_cat.active
-    ws_cat.append(["收件人姓名", "收件人手機", "收件人地址", "件數", "品名", "備註", "訂單編號"]) # 簡化欄位範例
 
-    # 填充資料 (略過重複邏輯，同前一版，但增加顏色)
+    # 2. 黑貓匯入單 (標準 27 欄)
+    wb_cat = Workbook(); ws_cat = wb_cat.active
+    ws_cat.append(["收件人姓名", "收件人電話", "收件人手機", "收件人地址", "代收金額或到付", "件數", "品名(詳參數表)", "備註", "訂單編號", "希望配達時間(詳參數表)", "出貨日期(YYYY/MM/DD)", "預定配達日期(YYYY/MM/DD)", "溫層(詳參數表)", "尺寸(詳參數表)", "寄件人姓名", "寄件人電話", "寄件人手機", "寄件人地址", "保值金額", "品名說明", "是否列印(Y/N)", "是否捐贈(Y/N)", "統一編號", "手機載具", "愛心碼", "可刷卡(Y/N)", "手機支付(Y/N)"])
+
+    # 3. 7-11 宅轉店
+    wb_711 = Workbook(); ws_711 = wb_711.active
+    ws_711.append(["訂單編號", "收件人姓名(必填)", "收件人手機(必填)", "FB名稱", "訂單備註", "代收金額", "門市編號(必填)", "匯款帳戶後五碼", "列印張數", "溫層(冷凍：0003)"])
+
     for data in all_data:
+        # 填寫宅配明細
         row_vals = [data["id"], data["name"]]
         for idx in used_indices:
             if idx > 2: row_vals.append(data["items"].get(idx, ""))
@@ -130,12 +143,27 @@ if uploaded_file:
             for c in range(1, len(row_vals) + 1):
                 ws_byjane.cell(row=ws_byjane.max_row, column=c).fill = pink_fill
 
-    st.success("✨ 處理完成！")
+        # 填寫黑貓 & 711
+        boxes = (data["sum"] // 90) + (1 if data["sum"] % 90 != 0 else 0) if data["sum"] > 0 else 1
+        deliver = str(data["deliver"])
+        
+        if "黑貓冷凍宅配" in deliver:
+            cat_row = [""] * 27
+            cat_row[0], cat_row[1], cat_row[2], cat_row[3] = data["name"], data["mobile"], data["mobile"], data["address"]
+            cat_row[5], cat_row[6], cat_row[8] = boxes, 1, data["id"]
+            cat_row[9], cat_row[12], cat_row[13] = 4, 3, 1
+            cat_row[14], cat_row[15], cat_row[16], cat_row[17] = "Byjane簡", "0960-319-998", "0960-319-998", "台南市中西區西賢五街26號"
+            ws_cat.append(cat_row)
+            
+        elif "711" in deliver or "快速到店" in deliver:
+            ws_711.append([data["id"], data["name"], data["mobile"], "", data["id"], "", "", "", boxes, "0003"])
+
+    st.success(f"✨ 處理完成！檔案已準備好。")
     
     def get_io(wb):
         out = io.BytesIO(); wb.save(out); return out.getvalue()
 
-    # 下載按鈕，檔名帶日期
     c1, c2, c3 = st.columns(3)
     c1.download_button(f"📂 宅配明細{date_suffix}", get_io(wb_byjane), f"宅配明細{date_suffix}.xlsx")
-    # 此處 wb_cat 與 wb_711 邏輯依此類推
+    c2.download_button(f"🚚 黑貓單{date_suffix}", get_io(wb_cat), f"黑貓單{date_suffix}.xlsx")
+    c3.download_button(f"🏪 宅轉店{date_suffix}", get_io(wb_711), f"宅轉店{date_suffix}.xlsx")
