@@ -33,7 +33,7 @@ st.title("🧇 ByJane 訂單自動處理系統")
 uploaded_file = st.file_uploader("選擇 Excel 檔案", type=["xlsx"])
 
 if uploaded_file:
-    # 1. 嘗試讀取檔案與建立地圖
+    # 1. 讀取來源
     wb_source = load_workbook(uploaded_file, data_only=True)
     ws = wb_source.active
     
@@ -43,23 +43,15 @@ if uploaded_file:
         if title:
             header_map[str(title).strip()] = col
 
-    # 2. 定義欄位位置 (使用 try-except 包裹這段欄位檢核)
-    try:
-        col_id = header_map.get('訂單編號', 1)
-        col_name = header_map.get('收件人姓名', 2)
-        col_mobile = header_map.get('收件人手機', 5)
-        col_addr = header_map.get('收件人地址', 7)
-        col_pack = header_map.get('包裝', 10) 
-        col_type = header_map.get('品項名稱', 11)
-        col_val = header_map.get('數量', 12)
-        col_deliver = header_map.get('配送方式', 14)
-        
-        if '訂單編號' not in header_map:
-            st.warning("⚠️ 找不到『訂單編號』標題，將使用預設位置。")
-            
-    except Exception as e:
-        st.error(f"解析標題時發生錯誤: {e}")
-        st.stop()
+    # 2. 欄位定位
+    col_id = header_map.get('訂單編號', 1)
+    col_name = header_map.get('收件人姓名', 2)
+    col_mobile = header_map.get('收件人手機', 5)
+    col_addr = header_map.get('收件人地址', 7)
+    col_pack = header_map.get('包裝', 10) 
+    col_type = header_map.get('品項名稱', 11)
+    col_val = header_map.get('數量', 12)
+    col_deliver = header_map.get('配送方式', 14)
 
     # 3. 初始化目標表格
     wb_byjane = Workbook()
@@ -74,7 +66,7 @@ if uploaded_file:
     ws_711 = wb_711.active
     ws_711.append(["訂單編號", "收件人姓名(必填)", "收件人手機(必填)", "FB名稱", "訂單備註", "代收金額", "門市編號(必填)", "匯款帳戶後五碼", "列印張數", "溫層(冷凍：0003)"])
 
-    # 4. 處理數據
+    # 4. 數據處理
     row_source = 2
     row_byjane = 1
     order_num_flag = 0
@@ -82,25 +74,7 @@ if uploaded_file:
     
     with st.spinner('正在分析訂單數據...'):
         while True:
+            order_num_current = ws.cell(row=row_source, column=col_id).value
             order_num_next = ws.cell(row=row_source + 1, column=col_id).value
             
-            if order_num_flag == 0:
-                order_num_current = ws.cell(row=row_source, column=col_id).value
-                order_name_current = ws.cell(row=row_source, column=col_name).value
-                row_byjane += 1
-                ws_byjane.cell(row=row_byjane, column=1).value = order_num_current
-                ws_byjane.cell(row=row_byjane, column=2).value = order_name_current
-                order_num_flag = 1
-
-            p_pack = ws.cell(row=row_source, column=col_pack).value
-            p_type = ws.cell(row=row_source, column=col_type).value
-            p_val = ws.cell(row=row_source, column=col_val).value or 0
-            
-            p_col = f_prod_pack_col(p_pack)
-            if p_col != 0 and p_col != 1:
-                ws_byjane.cell(row=row_byjane, column=p_col).value = p_val
-            else:
-                t_col = f_prod_type_col(p_type)
-                if t_col != 0:
-                    ws_byjane.cell(row=row_byjane, column=t_col).value = p_val
-                    prod_sum += (p_val * 8 if t_col
+            if order_num_
