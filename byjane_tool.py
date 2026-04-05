@@ -77,4 +77,63 @@ if uploaded_file:
             order_num_current = ws.cell(row=row_source, column=col_id).value
             order_num_next = ws.cell(row=row_source + 1, column=col_id).value
             
-            if order_num_
+            if order_num_flag == 0:
+                order_name_current = ws.cell(row=row_source, column=col_name).value
+                row_byjane += 1
+                ws_byjane.cell(row=row_byjane, column=1).value = order_num_current
+                ws_byjane.cell(row=row_byjane, column=2).value = order_name_current
+                order_num_flag = 1
+
+            p_pack = ws.cell(row=row_source, column=col_pack).value
+            p_type = ws.cell(row=row_source, column=col_type).value
+            p_val = ws.cell(row=row_source, column=col_val).value or 0
+            
+            p_col = f_prod_pack_col(p_pack)
+            if p_col != 0 and p_col != 1:
+                ws_byjane.cell(row=row_byjane, column=p_col).value = p_val
+            else:
+                t_col = f_prod_type_col(p_type)
+                if t_col != 0:
+                    ws_byjane.cell(row=row_byjane, column=t_col).value = p_val
+                    # 修正後的總數計算邏輯
+                    if t_col < 7:
+                        prod_sum += (p_val * 8)
+                    else:
+                        prod_sum += p_val
+
+            if order_num_current != order_num_next:
+                ws_byjane.cell(row=row_byjane, column=22).value = prod_sum
+                deliver = ws.cell(row=row_source, column=col_deliver).value
+                mobile = ws.cell(row=row_source, column=col_mobile).value
+                address = ws.cell(row=row_source, column=col_addr).value
+                
+                boxes = (prod_sum // 90) + (1 if prod_sum % 90 != 0 else 0) if prod_sum > 0 else 1
+
+                if deliver == "黑貓冷凍宅配":
+                    cat_row = [""] * 27
+                    cat_row[0], cat_row[1], cat_row[2], cat_row[3] = order_name_current, mobile, mobile, address
+                    cat_row[5], cat_row[6], cat_row[8] = boxes, 1, order_num_current
+                    cat_row[9], cat_row[12], cat_row[13] = 4, 3, 1
+                    cat_row[14], cat_row[15], cat_row[16], cat_row[17] = "Byjane簡", "0960-319-998", "0960-319-998", "台南市中西區西賢五街26號"
+                    ws_cat.append(cat_row)
+                elif "711" in str(deliver) or "快速到店" in str(deliver):
+                    ws_711.append([order_num_current, order_name_current, mobile, "", order_num_current, "", "", "", boxes, "0003"])
+
+                prod_sum = 0
+                order_num_flag = 0
+
+            if order_num_next is None:
+                break
+            row_source += 1
+
+    st.success("✨ 處理完成！")
+    
+    def get_io(wb):
+        output = io.BytesIO()
+        wb.save(output)
+        return output.getvalue()
+
+    c1, c2, c3 = st.columns(3)
+    c1.download_button("📂 宅配明細", get_io(wb_byjane), "宅配明細.xlsx")
+    c2.download_button("🚚 黑貓匯入", get_io(wb_cat), "黑貓單.xlsx")
+    c3.download_button("🏪 宅轉店", get_io(wb_711), "宅轉店.xlsx")
