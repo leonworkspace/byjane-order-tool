@@ -153,7 +153,7 @@ if uploaded_file:
         elif "711" in deliver or "快速到店" in deliver:
             ws_711.append([data["id"], data["name"], data["mobile"], "", data["id"], "", "", "", boxes, "0003"])
 
-    st.success(f"✨ 處理完成！已移除提袋與禮盒欄位，並更新總數計算。")
+    st.success(f"✨ 處理完成！")
     
     def get_io(wb):
         out = io.BytesIO(); wb.save(out); return out.getvalue()
