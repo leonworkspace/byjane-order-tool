@@ -19,7 +19,7 @@ def f_prod_type_col(value):
         "經典原味": 7, "肉桂": 8, "濃心可可": 9, "藍莓乳酪": 10,
         "糖漬檸檬乳酪": 11, "芝麻": 12, "伯爵茶麻糬": 13, "抹茶紅豆麻糬": 14,
         "焙茶": 15, "培根楓糖起司": 16, "烤地瓜": 17, "焦糖杏仁奶油": 18,
-        "鹽之花開心果可可": 19
+        "鹽之花開心果可可": 19,"烤蒜檸香奶油": 20
     }
     return mapping.get(str(value).strip(), 0) if value else 0
 
@@ -63,7 +63,7 @@ if uploaded_file:
     all_data = []
     active_cols = set()
     unpaid_list = []
-    all_titles = ["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果"]
+    all_titles = ["訂單編號", "姓名", "A", "B", "C", "D", "原味", "肉桂", "可可", "藍莓", "檸檬", "芝麻", "伯爵", "抹茶", "焙茶", "培根", "地瓜", "焦糖", "開心果", "蒜檸"]
     
     row_source = 2
     order_num_flag = 0
@@ -95,7 +95,7 @@ if uploaded_file:
             p_col = f_prod_pack_col(ws.cell(row=row_source, column=col_pack).value)
             t_col = f_prod_type_col(ws.cell(row=row_source, column=col_type).value)
             target_col = p_col if p_col != 0 else t_col
-            if 0 < target_col <= 19:
+            if 0 < target_col <= 20:
                 current_order_data["items"][target_col] = current_order_data["items"].get(target_col, 0) + p_val
                 active_cols.add(target_col)
                 current_order_data["sum"] += (p_val * 8 if target_col < 7 else p_val)
